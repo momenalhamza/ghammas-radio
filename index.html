@@ -1,0 +1,72 @@
+<!doctype html>
+<!--
+  Stable front door of CDR Group Radio (GitHub Pages).
+  The radio server is reached through a Cloudflare tunnel whose address
+  changes when it restarts. This page looks up the CURRENT address in
+  tunnel.json and forwards the visitor there, keeping the rest of the link
+  (path and ?branch=...&key=...). It is published as index.html and as
+  404.html, so every path of this site lands here.
+  Written by tunnel/watchdog.py; do not edit by hand.
+-->
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>راديو غمّاس بلدي</title>
+<style>
+  :root { color-scheme: dark light; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #111315; color: #f3efe7;
+         font: 16px/1.6 system-ui, "Segoe UI", Tahoma, sans-serif; text-align: center; padding: 16px; }
+  main { max-width: 34ch; }
+  h1 { font-size: 1.3rem; margin: 0 0 8px; }
+  p { color: #b9b2a5; margin: 0; }
+  a { color: #e9a23b; }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="t">جارٍ فتح الراديو…</h1>
+  <p id="m">لحظة واحدة.</p>
+</main>
+<script>
+(function () {
+  var REPO = "momenalhamza/ghammas-radio";             // owner/repo of this site
+  var BASE_PATH = "/ghammas-radio";   // "/repo" for project sites, "" for owner.github.io
+  var OK = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/;
+  var sources = [
+    "https://api.github.com/repos/" + REPO + "/contents/tunnel.json",   // fresh
+    BASE_PATH + "/tunnel.json"                                           // cached up to 10 min
+  ];
+  function parse(d) {
+    if (d && OK.test(d.url)) return d.url;
+    if (d && d.encoding === "base64" && typeof d.content === "string") {
+      try { return parse(JSON.parse(atob(d.content.replace(/\s/g, "")))); } catch (e) { return null; }
+    }
+    return null;
+  }
+  function rest() {
+    var p = location.pathname;
+    if (BASE_PATH && p.indexOf(BASE_PATH) === 0) p = p.slice(BASE_PATH.length);
+    if (p === "" || p === "/index.html" || p === "/404.html") p = "/";
+    return p + location.search + location.hash;
+  }
+  function tryAt(i) {
+    if (i >= sources.length) {
+      document.getElementById("t").textContent = "الراديو غير متاح الآن";
+      document.getElementById("m").textContent = "الخادم في المكتب لا يستجيب. ستُعاد المحاولة تلقائياً كل 20 ثانية.";
+      setTimeout(function () { tryAt(0); }, 20000);
+      return;
+    }
+    fetch(sources[i], { cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+      .then(function (d) { var u = parse(d); if (!u) throw 0; location.replace(u + rest()); })
+      .catch(function () { tryAt(i + 1); });
+  }
+  tryAt(0);
+})();
+</script>
+<noscript>يحتاج هذا الرابط إلى تفعيل JavaScript.</noscript>
+</body>
+</html>
